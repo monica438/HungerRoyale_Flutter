@@ -1,0 +1,71 @@
+{
+  "animationGroups": [
+    {
+      "id": "__main__",
+      "name": "Main",
+      "collapsed": false
+    }
+  ],
+  "animations": [
+    {
+      "id": "anim_1777919923689523",
+      "name": "anim_stop_yellow_duck",
+      "mediaFile": "media/stop_yellow_duck.png",
+      "startFrame": 0,
+      "endFrame": 1,
+      "fps": 7.0,
+      "loop": true,
+      "groupId": "__main__",
+      "anchorX": 0.4695693888253242,
+      "anchorY": 0.6251633889251407,
+      "anchorColor": "red",
+      "hitBoxes": [
+        {
+          "id": "__hb_1777920338567486_0",
+          "name": "Hit Box 1",
+          "color": "green",
+          "x": 0.2,
+          "y": 0.25,
+          "width": 0.5333333333333333,
+          "height": 0.71875
+        }
+      ],
+      "frameRigs": [
+        {
+          "frame": 0,
+          "anchorX": 0.4695693888253242,
+          "anchorY": 0.6251633889251407,
+          "anchorColor": "red",
+          "hitBoxes": [
+            {
+              "id": "__hb_1777920338567486_0",
+              "name": "Hit Box 1",
+              "color": "green",
+              "x": 0.2,
+              "y": 0.25,
+              "width": 0.5333333333333333,
+              "height": 0.71875
+            }
+          ]
+        },
+        {
+          "frame": 1,
+          "anchorX": 0.5486414036676838,
+          "anchorY": 0.6277863642898431,
+          "anchorColor": "red",
+          "hitBoxes": [
+            {
+              "id": "__hb_1777920352917846_1",
+              "name": "Hit Box 1",
+              "color": "green",
+              "x": 0.26666666666666666,
+              "y": 0.21875,
+              "width": 0.5333333333333333,
+              "height": 0.75
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

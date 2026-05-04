@@ -1,0 +1,13 @@
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/game_example
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/icudtl.dat
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/lib/libflutter_linux_gtk.so
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/flutter_assets/FontManifest.json
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/flutter_assets/fonts/MaterialIcons-Regular.otf
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/flutter_assets/NativeAssetsManifest.json
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/flutter_assets/kernel_blob.bin
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/flutter_assets/NOTICES.Z
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/flutter_assets/shaders/stretch_effect.frag
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/flutter_assets/shaders/ink_sparkle.frag
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/flutter_assets/version.json
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/flutter_assets/AssetManifest.bin
+/home/super/Documents/GitHub/HungerRoyale_Flutter/duckroyale/build/linux/x64/debug/bundle/data/flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf

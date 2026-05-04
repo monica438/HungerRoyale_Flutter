@@ -1,0 +1,55 @@
+{
+  "zoneGroups": [
+    {
+      "id": "__main__",
+      "name": "Main",
+      "collapsed": false
+    }
+  ],
+  "zones": [
+    {
+      "name": "zona_level_0000",
+      "type": "Default",
+      "gameplayData": "",
+      "x": 63,
+      "y": 74,
+      "width": 27,
+      "height": 397,
+      "color": "blue",
+      "groupId": "__main__"
+    },
+    {
+      "name": "zona_level_0000",
+      "type": "Default",
+      "gameplayData": "",
+      "x": 1032,
+      "y": 80,
+      "width": 27,
+      "height": 397,
+      "color": "blue",
+      "groupId": "__main__"
+    },
+    {
+      "name": "zone_floor_0000",
+      "type": "Default",
+      "gameplayData": "",
+      "x": 77,
+      "y": 74,
+      "width": 976,
+      "height": 21,
+      "color": "blue",
+      "groupId": "__main__"
+    },
+    {
+      "name": "zone_floor_0000",
+      "type": "Default",
+      "gameplayData": "",
+      "x": 80,
+      "y": 456,
+      "width": 976,
+      "height": 21,
+      "color": "blue",
+      "groupId": "__main__"
+    }
+  ]
+}

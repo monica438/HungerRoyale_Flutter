@@ -1,0 +1,132 @@
+{
+  "name": "duckgame",
+  "description": "",
+  "levels": [
+    {
+      "name": "level_000",
+      "description": "",
+      "gameplayData": "",
+      "layers": [
+        {
+          "name": "tilesets",
+          "gameplayData": "",
+          "x": 0,
+          "y": 0,
+          "depth": 0.0,
+          "tilesSheetFile": "media/tilsets_2.png",
+          "tilesWidth": 24,
+          "tilesHeight": 24,
+          "visible": true,
+          "groupId": "__main__",
+          "tileMapFile": "tilemaps/level_000_layer_000.json"
+        },
+        {
+          "name": "background",
+          "gameplayData": "",
+          "x": 0,
+          "y": 0,
+          "depth": 0.0,
+          "tilesSheetFile": "media/background_2.png",
+          "tilesWidth": 1140,
+          "tilesHeight": 562,
+          "visible": true,
+          "groupId": "__main__",
+          "tileMapFile": "tilemaps/level_000_layer_001.json"
+        }
+      ],
+      "layerGroups": [
+        {
+          "id": "__main__",
+          "name": "Main",
+          "collapsed": false
+        }
+      ],
+      "sprites": [
+        {
+          "name": "anim_stop_yellow_duck",
+          "gameplayData": "",
+          "type": "anim_stop_yellow_duck",
+          "animationId": "anim_1777919923689523",
+          "x": 151,
+          "y": 349,
+          "width": 30,
+          "height": 32,
+          "imageFile": "media/stop_yellow_duck.png",
+          "flipX": false,
+          "flipY": false,
+          "depth": 0.0,
+          "groupId": "__main__"
+        }
+      ],
+      "spriteGroups": [
+        {
+          "id": "__main__",
+          "name": "Main",
+          "collapsed": false
+        }
+      ],
+      "groupId": "__main__",
+      "viewportWidth": 320,
+      "viewportHeight": 180,
+      "viewportX": 0,
+      "viewportY": 0,
+      "viewportAdaptation": "letterbox",
+      "viewportInitialColor": "green",
+      "viewportPreviewColor": "blue",
+      "backgroundColorHex": "#DCDCE1",
+      "depthSensitivity": 0.08,
+      "zonesFile": "zones/level_000_zones.json",
+      "pathsFile": "paths/level_000_paths.json"
+    }
+  ],
+  "levelGroups": [
+    {
+      "id": "__main__",
+      "name": "Main",
+      "collapsed": false
+    }
+  ],
+  "mediaAssets": [
+    {
+      "name": "stop_yellow_duck",
+      "fileName": "media/stop_yellow_duck.png",
+      "mediaType": "spritesheet",
+      "tileWidth": 30,
+      "tileHeight": 32,
+      "selectionColorHex": "#FFCC00",
+      "groupId": "__main__"
+    },
+    {
+      "name": "tilsets_bg",
+      "fileName": "media/tilsets_2.png",
+      "mediaType": "tileset",
+      "tileWidth": 24,
+      "tileHeight": 24,
+      "selectionColorHex": "#FFCC00",
+      "groupId": "__main__"
+    },
+    {
+      "name": "background",
+      "fileName": "media/background_2.png",
+      "mediaType": "tileset",
+      "tileWidth": 1140,
+      "tileHeight": 562,
+      "selectionColorHex": "#FFCC00",
+      "groupId": "__main__"
+    }
+  ],
+  "mediaGroups": [
+    {
+      "id": "__main__",
+      "name": "Main",
+      "collapsed": false
+    }
+  ],
+  "zoneTypes": [
+    {
+      "name": "Default",
+      "color": "blue"
+    }
+  ],
+  "animationsFile": "animations/animations.json"
+}
