@@ -17,74 +17,108 @@ class LobbyScreen extends StatefulWidget {
   State<LobbyScreen> createState() => _LobbyScreenState();
 }
 
+class _LobbyPlayer {
+  final String id;
+  final String name;
+  const _LobbyPlayer({required this.id, required this.name});
+}
+
 class _LobbyScreenState extends State<LobbyScreen> {
-  final List<String> _players = [];
+  final Map<String, _LobbyPlayer> _playersById = {};
+  StreamSubscription<WsMessage>? _messagesSub;
+
   String _status = 'Waiting for players...';
-  int _countdown = 15;
-  Timer? _timer;
+  int? _serverCountdown;
+  bool _navigating = false;
+
+  List<_LobbyPlayer> get _players => _playersById.values.toList();
 
   @override
   void initState() {
     super.initState();
-    _players.add(widget.playerName);
 
-    widget.client.messages.listen((msg) {
+    _messagesSub = widget.client.messages.listen((msg) {
       if (!mounted) return;
+
       switch (msg.type) {
-        case WsMessageType.playerList:
-          final list = (msg.data['players'] as List?)
-              ?.map((p) => p['name'] as String)
-              .toList() ?? [];
-          setState(() {
-            _players
-              ..clear()
-              ..add(widget.playerName)
-              ..addAll(list);
-          });
-          _checkCountdown();
+        case WsMessageType.joined:
+          // Solo guardamos mi id. No metemos al jugador en la lista aquí,
+          // porque la lista oficial llega en STATE desde el servidor.
+          final id = msg.data['id']?.toString();
+          if (id != null) widget.client.playerId = id;
+          break;
 
-        case WsMessageType.playerJoined:
-          setState(() => _players.add(msg.data['name'] as String));
-          _checkCountdown();
-
-        case WsMessageType.playerLeft:
-          setState(() => _players.remove(msg.data['name'] as String));
-          _checkCountdown();
+        case WsMessageType.state:
+          _applyServerState(msg.data);
+          break;
 
         case WsMessageType.error:
           setState(() => _status = 'Error: ${msg.data['message']}');
+          break;
 
-        default:
+        // Estos mensajes quedan por compatibilidad, pero el lobby ya no los usa para pintar.
+        // Así evitamos mezclar eventos incrementales con una lista completa y crear duplicados.
+        case WsMessageType.playerList:
+        case WsMessageType.playerJoined:
+        case WsMessageType.playerLeft:
+        case WsMessageType.playerMoved:
+        case WsMessageType.unknown:
           break;
       }
     });
   }
 
-  void _checkCountdown() {
-    if (_players.length > 1 && _timer == null) {
-      _startCountdown();
-    } else if (_players.length <= 1 && _timer != null) {
-      _stopCountdown();
+  void _applyServerState(Map<String, dynamic> data) {
+    final rawPlayers = data['players'] as List? ?? [];
+    final nextPlayers = <String, _LobbyPlayer>{};
+
+    for (final raw in rawPlayers) {
+      if (raw is! Map) continue;
+      final id = raw['id']?.toString();
+      if (id == null || id.isEmpty) continue;
+      final name = (raw['name'] ?? id).toString();
+      nextPlayers[id] = _LobbyPlayer(id: id, name: name);
     }
-  }
 
-  void _startCountdown() {
-    setState(() { _countdown = 15; _status = 'Game starting soon...'; });
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) { t.cancel(); return; }
-      setState(() => _countdown--);
-      if (_countdown <= 0) {
-        t.cancel();
-        _timer = null;
-        _goToGame();
+    final lobby = data['lobby'];
+    String nextStatus = 'Waiting for players...';
+    int? nextCountdown;
+    bool shouldGoToGame = false;
+
+    if (lobby is Map) {
+      final phase = lobby['phase']?.toString() ?? 'waiting';
+      if (phase == 'countdown') {
+        nextStatus = 'Game starting soon...';
+        nextCountdown = (lobby['countdown'] as num?)?.toInt();
+      } else if (phase == 'playing') {
+        nextStatus = 'Starting game...';
+        nextCountdown = 0;
+        shouldGoToGame = true;
+      } else {
+        final minPlayers = (lobby['minPlayers'] as num?)?.toInt() ?? 2;
+        nextStatus = 'Waiting for $minPlayers players...';
       }
-    });
-  }
+    } else {
+      // Si por cualquier motivo estás conectado al servidor antiguo,
+      // mantenemos el estado visual sin cuenta atrás local.
+      nextStatus = nextPlayers.length > 1 ? 'Ready' : 'Waiting for players...';
+    }
 
-  void _stopCountdown() {
-    _timer?.cancel();
-    _timer = null;
-    setState(() { _countdown = 15; _status = 'Waiting for players...'; });
+    setState(() {
+      _playersById
+        ..clear()
+        ..addAll(nextPlayers);
+      _status = nextStatus;
+      _serverCountdown = nextCountdown;
+    });
+
+    if (shouldGoToGame && !_navigating) {
+      _navigating = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _goToGame();
+      });
+    }
   }
 
   void _goToGame() {
@@ -95,25 +129,32 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _messagesSub?.cancel();
     super.dispose();
   }
 
   void _disconnect() {
-    _timer?.cancel();
     widget.client.disconnect();
     Navigator.of(context).pop();
   }
 
+  bool _isMe(_LobbyPlayer player) {
+    final myId = widget.client.playerId;
+    if (myId != null) return player.id == myId;
+    return player.name == widget.playerName;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final players = _players;
+    final countdown = _serverCountdown;
+
     return Scaffold(
       body: Stack(fit: StackFit.expand, children: [
         const _CastleBg(),
         SafeArea(child: Column(children: [
           const SizedBox(height: 32),
 
-          // Título
           const Text('WAITING ROOM', style: TextStyle(
             fontFamily: 'monospace', fontSize: 22, fontWeight: FontWeight.bold,
             color: _gold, letterSpacing: 4,
@@ -123,15 +164,15 @@ class _LobbyScreenState extends State<LobbyScreen> {
           Text(_status, style: const TextStyle(
             fontFamily: 'monospace', fontSize: 10, color: Color(0xFF8d9b8e), letterSpacing: 2,
           )),
-          if (_timer != null) ...[  
+          if (countdown != null) ...[
             const SizedBox(height: 12),
             Text(
-              '$_countdown',
+              '$countdown',
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
-                color: _countdown <= 5 ? Colors.redAccent : _gold,
+                color: countdown <= 5 ? Colors.redAccent : _gold,
                 shadows: const [Shadow(color: Colors.black, blurRadius: 0, offset: Offset(3, 3))],
               ),
             ),
@@ -139,7 +180,6 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
           const SizedBox(height: 32),
 
-          // Lista de jugadores
           Expanded(child: Center(child: Container(
             width: 320,
             padding: const EdgeInsets.all(20),
@@ -153,16 +193,16 @@ class _LobbyScreenState extends State<LobbyScreen> {
                 const Text('PLAYERS  ', style: TextStyle(
                   fontFamily: 'monospace', fontSize: 12, color: _gold, letterSpacing: 2,
                 )),
-                Text('${_players.length}', style: const TextStyle(
+                Text('${players.length}', style: const TextStyle(
                   fontFamily: 'monospace', fontSize: 12, color: Color(0xFF8d9b8e),
                 )),
               ]),
               const SizedBox(height: 12),
               const Divider(color: _stoneDk, height: 1),
               const SizedBox(height: 12),
-              ..._players.map((name) => _PlayerRow(
-                name: name,
-                isMe: name == widget.playerName,
+              ...players.map((player) => _PlayerRow(
+                name: player.name,
+                isMe: _isMe(player),
               )),
               const SizedBox(height: 20),
               const _PulsingDots(),
@@ -171,7 +211,6 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
           const SizedBox(height: 24),
 
-          // Botón salir
           SizedBox(width: 320, child: ElevatedButton(
             onPressed: _disconnect,
             style: ElevatedButton.styleFrom(
