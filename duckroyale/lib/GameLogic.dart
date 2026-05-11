@@ -114,12 +114,17 @@ class _GameLogicState extends State<GameLogic> with SingleTickerProviderStateMix
   List<_Sprite> _staticSprites = [];
   List<_Zone> _zones = [];
   final Map<String, _AnimDef> _animations = {};
+  final Map<String, Size> _frameSizes = {};
   ui.Image? _bgImage;
   final Map<String, ui.Image> _images = {};
 
   final Map<String, _RemotePlayer> _players = {};
   final Map<String, _ItemState> _swords = {};
   final Map<String, _ItemState> _hearts = {};
+
+  String _phase = 'playing';
+  String? _winnerName;
+  bool _returningToLobby = false;
 
   StreamSubscription? _wsSub;
   Ticker? _ticker;
@@ -147,26 +152,95 @@ class _GameLogicState extends State<GameLogic> with SingleTickerProviderStateMix
     return img;
   }
 
+
+  void _registerAnimation(String name, String mediaFile, int startFrame, int endFrame, double fps, {bool loop = true}) {
+    _animations[name] = _AnimDef(name, mediaFile, startFrame, endFrame, fps, loop);
+  }
+
+  Future<void> _loadAnimationsWithFallback(Map<String, dynamic> gameData) async {
+    _animations.clear();
+
+    try {
+      final animationsPath = (gameData['animationsFile'] as String?) ?? 'animations/animations.json';
+      final animData = jsonDecode(await rootBundle.loadString('assets/$animationsPath')) as Map<String, dynamic>;
+      for (final a in (animData['animations'] as List).cast<Map<String, dynamic>>()) {
+        _registerAnimation(
+          a['name'] as String,
+          a['mediaFile'] as String,
+          (a['startFrame'] as num).toInt(),
+          (a['endFrame'] as num).toInt(),
+          (a['fps'] as num).toDouble(),
+          loop: a['loop'] as bool? ?? true,
+        );
+      }
+    } catch (e) {
+      debugPrint('No se ha podido cargar el archivo de animaciones definido en game_data.json. Uso animaciones fallback: $e');
+      _registerFallbackAnimations();
+    }
+
+    final files = _animations.values.map((a) => a.mediaFile).toSet();
+    for (final file in files) {
+      await _loadImage(file);
+    }
+  }
+
+  void _registerFallbackAnimations() {
+    const colors = ['yellow', 'white', 'orange', 'grey', 'green'];
+    const stopFiles = {
+      'yellow': 'media/stop_yellow_duck.png',
+      'white': 'media/stop_white_duck.png',
+      'orange': 'media/stop_orange_duck.png',
+      'grey': 'media/stop_grey_duck.png',
+      'green': 'media/stop_green_duck.png',
+    };
+    const rightFiles = {
+      'yellow': 'media/right_yellow_duck.png',
+      'white': 'media/right_white_duck.png',
+      'orange': 'media/orange_duck_right.png',
+      'grey': 'media/right_grey_duck.png',
+      'green': 'media/right_green_duck (1).png',
+    };
+    const leftFiles = {
+      'yellow': 'media/left_yellow_duck.png',
+      'white': 'media/left_white_duck.png',
+      'orange': 'media/orange_duck_left.png',
+      'grey': 'media/left_grey_duck.png',
+      'green': 'media/left_green_duck.png',
+    };
+    const dieFiles = {
+      'yellow': 'media/die_yellow_duck.png',
+      'white': 'media/die_white_duck.png',
+      'orange': 'media/die_orange_duck.png',
+      'grey': 'media/die_duck_grey.png',
+      'green': 'media/die_duck_green (1).png',
+    };
+
+    for (final color in colors) {
+      _registerAnimation('anim_stop_${color}_duck', stopFiles[color]!, 0, 1, 7.0);
+      _registerAnimation('anim_right_${color}_duck', rightFiles[color]!, 0, 3, 7.5);
+      _registerAnimation('anim_left_${color}_duck', leftFiles[color]!, 0, 3, 7.5);
+      _registerAnimation(color == 'green' ? 'anim_die_duck_green' : 'anim_die_${color}_duck', dieFiles[color]!, 0, 1, 7.0, loop: false);
+      _registerAnimation('anim_swd_left_$color', 'media/sword_left_duck_$color.png', 1, 3, 8.0);
+      _registerAnimation('anim_swd_right_$color', 'media/sword_right_duck_$color.png', 0, 2, 8.0);
+    }
+    _registerAnimation('anim_swordd', 'media/swoooord_2.png', 0, 2, 7.0);
+    _registerAnimation('heart_anim', 'media/corazon_vida_3.png', 0, 3, 7.0);
+  }
+
   Future<void> _loadLevel() async {
     try {
       final gd = jsonDecode(await rootBundle.loadString('assets/game_data.json')) as Map<String, dynamic>;
       final level = (gd['levels'] as List).first as Map<String, dynamic>;
       final mediaAssets = (gd['mediaAssets'] as List).cast<Map<String, dynamic>>();
       final mediaMap = <String, Map<String, dynamic>>{for (final m in mediaAssets) m['fileName'] as String: m};
+      _frameSizes
+        ..clear()
+        ..addEntries(mediaAssets.map((m) => MapEntry(
+          m['fileName'] as String,
+          Size((m['tileWidth'] as num).toDouble(), (m['tileHeight'] as num).toDouble()),
+        )));
 
-      final animData = jsonDecode(await rootBundle.loadString('assets/animations.json')) as Map<String, dynamic>;
-      for (final a in (animData['animations'] as List).cast<Map<String, dynamic>>()) {
-        final def = _AnimDef(
-          a['name'] as String,
-          a['mediaFile'] as String,
-          (a['startFrame'] as num).toInt(),
-          (a['endFrame'] as num).toInt(),
-          (a['fps'] as num).toDouble(),
-          a['loop'] as bool? ?? true,
-        );
-        _animations[def.name] = def;
-        await _loadImage(def.mediaFile);
-      }
+      await _loadAnimationsWithFallback(gd);
 
       final zData = jsonDecode(await rootBundle.loadString('assets/zones/level_000_zones.json')) as Map<String, dynamic>;
       _zones = (zData['zones'] as List).map((z) => _Zone(
@@ -212,6 +286,9 @@ class _GameLogicState extends State<GameLogic> with SingleTickerProviderStateMix
   void _onWsMessage(WsMessage msg) {
     if (!mounted) return;
     if (msg.type == WsMessageType.state) {
+      final lobby = (msg.data['lobby'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
+      final newPhase = lobby['phase'] as String? ?? _phase;
+      final winner = (lobby['winner'] as Map?)?.cast<String, dynamic>();
       final players = (msg.data['players'] as List? ?? const [])
           .cast<Map<String, dynamic>>()
           .map(_RemotePlayer.fromJson);
@@ -222,6 +299,8 @@ class _GameLogicState extends State<GameLogic> with SingleTickerProviderStateMix
           .cast<Map<String, dynamic>>()
           .map(_ItemState.fromJson);
       setState(() {
+        _phase = newPhase;
+        _winnerName = winner?['name'] as String?;
         _players
           ..clear()
           ..addEntries(players.map((p) => MapEntry(p.id, p)));
@@ -232,6 +311,17 @@ class _GameLogicState extends State<GameLogic> with SingleTickerProviderStateMix
           ..clear()
           ..addEntries(hearts.map((i) => MapEntry(i.id, i)));
       });
+
+      if ((newPhase == 'waiting' || newPhase == 'countdown') && !_returningToLobby) {
+        _returningToLobby = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context).pushReplacementNamed('/lobby', arguments: {
+            'client': widget.client,
+            'playerName': widget.playerName,
+          });
+        });
+      }
     } else if (msg.type == WsMessageType.error) {
       setState(() => _error = msg.data['message']?.toString() ?? 'Connection error');
     }
@@ -296,6 +386,7 @@ class _GameLogicState extends State<GameLogic> with SingleTickerProviderStateMix
                   zones: _zones,
                   images: _images,
                   animations: _animations,
+                  frameSizes: _frameSizes,
                   players: _players.values.toList(),
                   swords: _swords.values.toList(),
                   hearts: _hearts.values.toList(),
@@ -306,6 +397,8 @@ class _GameLogicState extends State<GameLogic> with SingleTickerProviderStateMix
               ),
             ),
             Positioned(left: 16, top: 16, child: _Hud(me: me, players: _players.values.toList())),
+            if (_phase == 'ended')
+              Positioned.fill(child: _GameOverOverlay(winnerName: _winnerName)),
             Positioned(left: 18, bottom: 18, child: _TouchButton(label: '◀', onDown: () => _setInput(left: true), onUp: () => _setInput(left: false))),
             Positioned(left: 86, bottom: 18, child: _TouchButton(label: '▶', onDown: () => _setInput(right: true), onUp: () => _setInput(right: false))),
             Positioned(right: 96, bottom: 18, child: _TouchButton(label: 'JUMP', onDown: () => _setInput(jump: true), onUp: () => _setInput(jump: false), wide: true)),
@@ -332,6 +425,7 @@ class _LevelPainter extends CustomPainter {
   final List<_Zone> zones;
   final Map<String, ui.Image> images;
   final Map<String, _AnimDef> animations;
+  final Map<String, Size> frameSizes;
   final List<_RemotePlayer> players;
   final List<_ItemState> swords;
   final List<_ItemState> hearts;
@@ -346,6 +440,7 @@ class _LevelPainter extends CustomPainter {
     required this.zones,
     required this.images,
     required this.animations,
+    required this.frameSizes,
     required this.players,
     required this.swords,
     required this.hearts,
@@ -365,10 +460,17 @@ class _LevelPainter extends CustomPainter {
     if (def == null) return;
     final img = images[def.mediaFile];
     if (img == null) return;
+
+    // El tamaño de cada frame NO se calcula dividiendo el ancho de la imagen.
+    // Viene de game_data.json -> mediaAssets -> tileWidth/tileHeight. Así evitamos
+    // que un frame incluya varios frames del spritesheet cuando endFrame no coincide
+    // con el total real de columnas del PNG.
+    final frameSize = frameSizes[def.mediaFile] ?? Size(img.width.toDouble(), img.height.toDouble());
+    final frameW = frameSize.width;
+    final frameH = frameSize.height;
     final frame = _frame(def);
-    final totalFramesInSheet = def.endFrame + 1;
-    final frameW = img.width / totalFramesInSheet;
-    final src = Rect.fromLTWH(frame * frameW, 0, frameW, img.height.toDouble());
+    final src = Rect.fromLTWH(frame * frameW, 0, frameW, frameH);
+
     final paint = Paint()..filterQuality = FilterQuality.none;
     if (flash && (elapsed * 10).floor().isEven) paint.colorFilter = const ColorFilter.mode(Colors.white70, BlendMode.srcATop);
     canvas.drawImageRect(img, src, Rect.fromLTWH(x - w / 2, y - h, w, h), paint);
@@ -430,8 +532,10 @@ class _LevelPainter extends CustomPainter {
     final sorted = [...players]..sort((a, b) => a.y.compareTo(b.y));
     for (final p in sorted) {
       final anim = _animFor(p);
-      final w = p.hasSword ? (p.facing == 'right' ? 48.0 : 45.0) : 31.0;
-      final h = p.hasSword ? 45.0 : (p.alive ? 32.0 : 20.0);
+      final def = animations[anim];
+      final fs = def == null ? null : frameSizes[def.mediaFile];
+      final w = fs?.width ?? (p.hasSword ? (p.facing == 'right' ? 48.0 : 45.0) : 31.0);
+      final h = fs?.height ?? (p.hasSword ? 45.0 : (p.alive ? 32.0 : 20.0));
       if (p.attacking && p.hasSword) {
         final attackPaint = Paint()..color = Colors.white.withOpacity(0.18);
         final arcX = p.facing == 'right' ? p.x : p.x - 42;
@@ -478,6 +582,44 @@ class _Hud extends StatelessWidget {
         const SizedBox(height: 6),
         const Text('A/D or ←/→ move • W/Space jump • J attack', style: TextStyle(fontSize: 10, color: Colors.white70)),
       ]),
+    ),
+  );
+}
+
+class _GameOverOverlay extends StatelessWidget {
+  final String? winnerName;
+  const _GameOverOverlay({required this.winnerName});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    color: Colors.black.withOpacity(0.62),
+    alignment: Alignment.center,
+    child: Container(
+      width: 360,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1a1f2e).withOpacity(0.95),
+        border: Border.all(color: const Color(0xFFd4a843), width: 3),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('GAME OVER', style: TextStyle(
+            fontFamily: 'monospace', fontSize: 26, fontWeight: FontWeight.bold,
+            color: Color(0xFFd4a843), letterSpacing: 3,
+          )),
+          const SizedBox(height: 16),
+          Text(
+            winnerName == null ? 'No winner' : '$winnerName wins!',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 18, color: Colors.white),
+          ),
+          const SizedBox(height: 12),
+          const Text('Resetting round...', style: TextStyle(
+            fontFamily: 'monospace', fontSize: 12, color: Colors.white70,
+          )),
+        ],
+      ),
     ),
   );
 }
