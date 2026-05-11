@@ -28,10 +28,13 @@ class _MainMenuState extends State<MainMenu> {
     try {
       final client = GameWebSocketClient(url: _serverCtrl.text.trim(), playerName: name);
       await client.connect();
-      if (mounted) Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => LobbyScreen(client: client, playerName: name)));
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => LobbyScreen(client: client, playerName: name),
+      ));
+      if (mounted) setState(() => _connecting = false);
     } catch (e) {
-      setState(() { _error = 'Connection failed: $e'; _connecting = false; });
+      if (mounted) setState(() { _error = 'Connection failed: $e'; _connecting = false; });
     }
   }
 
